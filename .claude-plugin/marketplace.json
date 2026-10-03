@@ -1,0 +1,26 @@
+{
+  "name": "claude-open-points",
+  "owner": {
+    "name": "Rajat",
+    "url": "https://github.com/rightlabs"
+  },
+  "plugins": [
+    {
+      "name": "open-points",
+      "source": "./",
+      "description": "Your project's to-do list, live beside Claude: a pane grouped by status and a count above the prompt, updating as Claude works.",
+      "category": "productivity",
+      "tags": [
+        "todo",
+        "tasks",
+        "open-points",
+        "pane",
+        "mod",
+        "terminal"
+      ]
+    }
+  ],
+  "metadata": {
+    "description": "Your project's to-do list, live beside Claude Code"
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "name": "open-points",
+  "version": "0.1.0",
+  "description": "A live view of your project's open points or TODO markdown file: a side pane grouped by status and a one-line count above the prompt.",
+  "author": {
+    "name": "Rajat",
+    "url": "https://github.com/rightlabs"
+  },
+  "homepage": "https://github.com/rightlabs/claude-open-points",
+  "repository": "https://github.com/rightlabs/claude-open-points",
+  "license": "MIT",
+  "keywords": [
+    "todo",
+    "tasks",
+    "open-points",
+    "pane",
+    "mod"
+  ],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "file": {
+      "type": "string",
+      "title": "List file",
+      "description": "Path to the markdown list, relative to the project or absolute. Empty finds OPEN-POINTS.md or TODO.md by itself.",
+      "default": ""
+    },
+    "showBand": {
+      "type": "boolean",
+      "title": "Show the count above the prompt",
+      "description": "One line above the prompt: how many points need you, are being built, and are open.",
+      "default": true
+    },
+    "openPaneOnStart": {
+      "type": "boolean",
+      "title": "Open the pane when a session starts",
+      "description": "Opens the side pane at start (it seats from 144 terminal columns).",
+      "default": false
+    }
+  }
+}
