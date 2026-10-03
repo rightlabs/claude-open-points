@@ -9,6 +9,8 @@ const doc = atom({ plugin: 'open-points', key: 'doc' } as const, null)
 const error = atom({ plugin: 'open-points', key: 'error' } as const, null)
 const expanded = atom({ plugin: 'open-points', key: 'expanded' } as const, [])
 
+const LOOKED_FOR = 'Looked for OPEN-POINTS.md, TODO.md, TO-DO.md and TASKS.md, also under docs/.'
+
 const COLLAPSED: PointStatus[] = ['later', 'done', 'dropped']
 
 const COLORS: Record<PointStatus, string> = {
@@ -101,7 +103,7 @@ export const register: Register = (on, options) => {
     await refresh($, configured, true)
     const current = await read($, doc)
     if (!current) {
-      return { text: `No list found. Looked for ${CANDIDATES.join(', ')}. Run /open-points <path> to pick one.` }
+      return { text: `No list found. ${LOOKED_FOR} Run /open-points <path> to pick one.` }
     }
     await $.ui.open({ id: PANE, title: 'Open points' })
     const c = counts(current.points)
@@ -129,7 +131,7 @@ export const register: Register = (on, options) => {
       return (
         <Box flexDirection="column">
           <Text>No list found.</Text>
-          <Text dimColor wrap="wrap">Looked for {CANDIDATES.join(', ')}. Run /open-points &lt;path&gt;.</Text>
+          <Text dimColor wrap="wrap">{LOOKED_FOR} Run /open-points &lt;path&gt;.</Text>
         </Box>
       )
     }

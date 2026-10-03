@@ -6,7 +6,7 @@ import type { Point, PointStatus } from '../types'
 // heading it sits under (Now, Done, Backlog, ...). Anything else is open.
 
 const MARKS: Record<string, PointStatus> = {
-  '✅': 'done', '✔️': 'done', '☑️': 'done',
+  '✅': 'done', '✔️': 'done', '✔': 'done', '☑️': 'done', '☑': 'done', '✓': 'done',
   '🔎': 'check', '👀': 'check',
   '⏸️': 'call', '⏸': 'call', '❓': 'call', '🚫': 'call', '⛔': 'call',
   '🔨': 'active', '⏳': 'active', '🚧': 'active', '🏗️': 'active',
@@ -20,7 +20,7 @@ const MARK_RE = new RegExp(
 )
 
 const BOXES: Record<string, PointStatus> = {
-  ' ': 'open', x: 'done', X: 'done', '~': 'active', '/': 'active', '-': 'dropped', '?': 'call', '!': 'call',
+  ' ': 'open', x: 'done', X: 'done', '~': 'active', '/': 'active', '-': 'dropped', '?': 'call', '!': 'call', '>': 'later', '<': 'later',
 }
 
 const WORDS: Array<[RegExp, PointStatus]> = [
@@ -37,10 +37,18 @@ const SECTION_WORDS: Array<[RegExp, PointStatus]> = [
   [/\b(now|doing|in progress|active|current)\b/i, 'active'],
   [/\b(review|to check|waiting)\b/i, 'check'],
   [/\b(blocked|questions?|decisions?)\b/i, 'call'],
-  [/\b(backlog|later|parked|someday|icebox|post-?live|after launch|future)\b/i, 'later'],
+  [/\b(backlog|later|parked|someday|icebox|post-?live|after launch|future|ideas?|maybe|nice to have)\b/i, 'later'],
 ]
 
-const ID_RE = /^(?:\*\*|\[)?([A-Z][A-Z0-9]*-?\d+[a-z]?|#\d+)(?:\*\*|\])?[:.]?(?=\s|$)/
+// An id leads a point: bold or bracketed (`**R7**`, `[R7]`), hyphenated (`API-4`),
+// an issue number (`#42`), or followed by a colon (`R7: ...`). A bare "Q3" or "V2"
+// opening a sentence is not one.
+const ID_RE =
+  /^(?:\*\*([A-Z][A-Z0-9]*-?\d+[a-z]?)\*\*[:.]?|\[([A-Z][A-Z0-9]*-?\d+[a-z]?)\][:.]?|([A-Z][A-Z0-9]*-\d+[a-z]?)[:.]?|(#\d+)[:.]?|([A-Z][A-Z0-9]*\d+[a-z]?):)(?=\s|$)/
+
+// Obsidian Tasks fields: dates and priority marks trail the task's words.
+const TASK_FIELDS = /\s*(?:[📅⏳🛫✅➕❌]\uFE0F?\s*\d{4}-\d{2}-\d{2}|🔁\uFE0F?\s*every\b[^📅⏳🛫✅➕❌]*|[⏫🔼🔽⏬🔺])/gu
+const URGENT_FIELD = /[⏫🔺]/u
 
 export function cleanInline(text: string): string {
   return text
@@ -77,10 +85,31 @@ export function parsePoints(markdown: string): Point[] {
   let sectionStatus: PointStatus | null = null
   let subStatus: PointStatus | null = null
   let inFence = false
+  let inComment = false
+  // The last top-level point, while it can still turn out to be a project heading
+  // for checkbox tasks nested under it.
+  let parent: { raw: Raw; isPlain: boolean } | null = null
+  const projects = new Set<Raw>()
+  const lines = markdown.split(/\r?\n/)
 
-  for (const line of markdown.split('\n')) {
+  // Front matter is settings, not points.
+  let from = 0
+  if (lines[0]?.trim() === '---') {
+    const close = lines.findIndex((l, i) => i > 0 && /^(---|\.\.\.)\s*$/.test(l))
+    if (close > 0) from = close + 1
+  }
+
+  for (const line of lines.slice(from)) {
+    if (inComment) {
+      if (line.includes('-->')) inComment = false
+      continue
+    }
     if (/^\s*(```|~~~)/.test(line)) { inFence = !inFence; continue }
     if (inFence) continue
+    if (line.includes('<!--') && !line.slice(line.indexOf('<!--')).includes('-->')) {
+      inComment = true
+      if (/^\s*<!--/.test(line)) continue
+    }
 
     const heading = line.match(/^(#{1,6})\s+(.+?)\s*#*\s*$/)
     if (heading) {
@@ -94,12 +123,14 @@ export function parsePoints(markdown: string): Point[] {
       } else {
         subStatus = status
       }
+      parent = null
       continue
     }
 
-    const item = line.match(/^(?:[-*+]|\d+[.)])\s+(.*)$/)
+    const item = line.match(/^([ \t]*)(?:[-*+]|\d+[.)])\s+(.*)$/)
     if (!item) continue
-    let rest = (item[1] ?? '').trim()
+    const indent = (item[1] ?? '').replace(/\t/g, '    ').length
+    let rest = (item[2] ?? '').trim()
     let status: PointStatus | null = null
     let isUrgent = false
 
@@ -109,6 +140,18 @@ export function parsePoints(markdown: string): Point[] {
       status = boxStatus
       rest = rest.slice(box[0].length)
     }
+
+    // Nested lines are details of their point, except checkbox tasks under a plain
+    // bullet, which then reads as a project name.
+    let nestedUnder: string | null = null
+    if (indent > 0) {
+      if (!box || !parent?.isPlain) continue
+      projects.add(parent.raw)
+      nestedUnder = parent.raw.title
+    }
+
+    if (URGENT_FIELD.test(rest)) isUrgent = true
+    rest = rest.replace(TASK_FIELDS, '')
 
     let id: string | null = null
     const takeMarks = () => {
@@ -121,7 +164,7 @@ export function parsePoints(markdown: string): Point[] {
     takeMarks()
     const idMatch = rest.match(ID_RE)
     if (idMatch) {
-      id = idMatch[1] ?? null
+      id = idMatch.slice(1).find(Boolean) ?? null
       rest = rest.slice(idMatch[0].length).trimStart()
     }
     takeMarks()
@@ -135,16 +178,20 @@ export function parsePoints(markdown: string): Point[] {
       status = WORDS.find(([re]) => re.test(head))?.[1] ?? null
     }
     const hasExplicit = status !== null
-    const last: Raw = { id, title, section, isUrgent, hasExplicit, status: status ?? subStatus ?? sectionStatus ?? 'open' }
-    out.push(last)
+    const where = nestedUnder ? (section ? `${section} · ${nestedUnder}` : nestedUnder) : section
+    const raw: Raw = { id, title, section: where, isUrgent, hasExplicit, status: status ?? subStatus ?? sectionStatus ?? 'open' }
     // An explicit "open" mark under a Later or Done heading still follows the heading.
-    if (last.status === 'open' && hasExplicit) last.status = subStatus ?? sectionStatus ?? 'open'
-    if (last.status === 'active' && (subStatus ?? sectionStatus) === 'later') last.status = 'later'
+    if (raw.status === 'open' && hasExplicit) raw.status = subStatus ?? sectionStatus ?? 'open'
+    if (raw.status === 'active' && (subStatus ?? sectionStatus) === 'later') raw.status = 'later'
+    out.push(raw)
+    if (!nestedUnder) parent = { raw, isPlain: !box && !hasExplicit && !id }
   }
 
-  // When most points carry an id, lines without one are notes, not points.
-  const withId = out.filter(p => p.id).length
-  const kept = withId * 2 >= out.length && withId > 0 ? out.filter(p => p.id) : out
+  // A plain bullet that holds checkbox tasks is their project, not a point.
+  const points = out.filter(p => !projects.has(p))
+  // When most points carry an id, unmarked lines without one are notes.
+  const withId = points.filter(p => p.id).length
+  const kept = withId > 0 && withId * 2 >= points.length ? points.filter(p => p.id || p.hasExplicit) : points
   return kept.map(({ hasExplicit: _, ...p }) => p)
 }
 
@@ -166,11 +213,5 @@ export function counts(points: Point[]): Record<PointStatus, number> {
   return c
 }
 
-export const CANDIDATES = [
-  'OPEN-POINTS.md',
-  'docs/OPEN-POINTS.md',
-  'docs/product/OPEN-POINTS.md',
-  'TODO.md',
-  'docs/TODO.md',
-  'TASKS.md',
-]
+const NAMES = ['OPEN-POINTS.md', 'open-points.md', 'TODO.md', 'todo.md', 'TO-DO.md', 'to-do.md', 'TASKS.md', 'tasks.md']
+export const CANDIDATES = ['', 'docs/'].flatMap(dir => NAMES.map(name => dir + name))

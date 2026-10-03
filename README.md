@@ -4,7 +4,7 @@ A Claude Code mod that keeps your project's to-do list in view. A pane beside th
 
 [![License](https://img.shields.io/github/license/rightlabs/claude-open-points)](LICENSE)
 
-![Claude Open Points in action](media/demo.gif)
+![Claude Open Points](media/hero.png)
 
 ## Install
 
@@ -41,22 +41,30 @@ Open points 3 need you · 1 being built · 3 open [view]
 - **Live.** It rereads the file every 2 seconds and right after Claude edits it, so when Claude finishes a point and marks it, the point moves on its own.
 - **Press a point** to put its id into the prompt, ready for "build WEB-3".
 
-![The pane](media/pane.png)
+## See it work
+
+Claude builds a point, marks it done, and the pane moves it without anyone touching the file:
+
+![Claude Open Points in action](media/demo.gif)
 
 ## Your list
 
-Any markdown list works. With no setup it looks for `OPEN-POINTS.md`, `docs/OPEN-POINTS.md`, `docs/product/OPEN-POINTS.md`, `TODO.md`, `docs/TODO.md` or `TASKS.md` in the project. To pick a file, run `/open-points path/to/list.md` (remembered per project) and `/open-points auto` to go back.
+Any markdown list works. With no setup it looks in the project for `OPEN-POINTS.md`, `TODO.md`, `TO-DO.md` or `TASKS.md` (upper or lower case), then the same names under `docs/`. To pick a file, run `/open-points path/to/list.md` (remembered per project) and `/open-points auto` to go back.
 
 A point is a top-level list line. Its status comes from the first of these that it has:
 
 | | Done | Your check | Your call | Being built | Dropped |
 |---|---|---|---|---|---|
 | Checkbox | `[x]` | | `[?]` `[!]` | `[~]` `[/]` | `[-]` |
-| Emoji | ✅ | 🔎 👀 | ⏸️ ❓ 🚫 | 🔨 ⏳ 🚧 | ❌ ➡️ |
+| Emoji | ✅ ✔ ✓ | 🔎 👀 | ⏸️ ❓ 🚫 | 🔨 ⏳ 🚧 | ❌ ➡️ |
 | Leading word | DONE, CLOSED | AWAITING ... CHECK, REVIEW | BLOCKED, FINDING | WIP, DOING | DROPPED, MERGED |
 | Heading | Done, Completed | Review | Blocked, Questions | Now, In progress | Dropped |
 
-Points under a heading named Backlog, Later, Parked, Someday or Post-live go to **Later**. 🔴 or 🔥 marks a point urgent. An id at the start of a point (`API-4`, `R7`, `#42`) is picked up; when most points have one, lines without one are treated as notes.
+Points under a heading named Backlog, Later, Parked, Someday, Ideas or Post-live, and `[>]` / `[<]` tasks, go to **Later**. 🔴, 🔥 or ⏫ marks a point urgent.
+
+An id at the start of a point is picked up when it is bold or bracketed (`**R7**`, `[R7]`), hyphenated (`API-4`), an issue number (`#42`) or followed by a colon (`R7:`). When most points have one, unmarked lines without one are treated as notes.
+
+Also handled: numbered lists, Obsidian Tasks dates and priorities (`📅 2026-10-05 ⏫`), checkbox tasks nested under a plain project bullet (the bullet becomes their group), YAML front matter, HTML comments, code blocks and Windows line endings. Other nested lines are details of their point and are not listed.
 
 Both of these work:
 
@@ -87,11 +95,14 @@ In `/config`, under open-points:
 - `showBand`: the line above the prompt (on by default).
 - `openPaneOnStart`: open the pane when a session starts (off by default).
 
+## Privacy
+
+The mod reads your list file and nothing else. It makes no network calls, runs no programs, never writes to your files and never calls the model. The only thing it keeps is which file you picked with `/open-points <path>`, stored per project in Claude Code's local plugin store on your machine.
+
 ## Notes
 
 - Mods are an early-access part of Claude Code. Built and tested on Claude Code 2.1.288.
 - The pane docks beside the chat in the fullscreen layout; elsewhere it opens above the prompt.
-- It only reads your list. Claude edits it; the mod never writes to it.
 
 ## License
 

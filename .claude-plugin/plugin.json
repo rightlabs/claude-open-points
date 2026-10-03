@@ -1,6 +1,6 @@
 {
   "name": "open-points",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A live view of your project's open points or TODO markdown file: a side pane grouped by status and a one-line count above the prompt.",
   "author": {
     "name": "Rajat",

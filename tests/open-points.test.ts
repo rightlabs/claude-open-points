@@ -140,3 +140,28 @@ test('the pane draws coloured groups and folds the closed ones', async ($, on) =
   expect(await ui.find({ key: 'go-done-R1' })).toBeDefined()
   await ui.unmount()
 })
+
+test('reads the common to-do formats', async () => {
+  const of = (md: string) => parsePoints(md).map(p => `${p.status}:${p.id ?? ''}:${p.title}:${p.section}`)
+
+  expect(of('- [ ] Write the README\n* [x] Set up CI\n1. [ ] Numbered task\n- [ ]\n')).toEqual([
+    'open::Write the README:', 'done::Set up CI:', 'open::Numbered task:',
+  ])
+  expect(of('### Todo\n- [ ] Design the API\n### In Progress\n- [ ] Auth flow\n### Done ✓\n- [x] Repo setup\n')).toEqual([
+    'open::Design the API:', 'active::Auth flow:', 'done::Repo setup:',
+  ])
+  const obsidian = parsePoints('- [ ] Write report 📅 2026-10-05 ⏫\n- [x] Pay rent ✅ 2026-10-01\n- [>] Moved on\n')
+  expect(obsidian.map(p => [p.title, p.status, p.isUrgent])).toEqual([
+    ['Write report', 'open', true], ['Pay rent', 'done', false], ['Moved on', 'later', false],
+  ])
+  expect(of('---\ntags:\n- work\n---\r\n<!--\n- [ ] hidden\n-->\r\n## Open\r\n- [ ] Real task\r\n')).toEqual([
+    'open::Real task:Open',
+  ])
+  expect(of('## Q4\n- Website\n  - [ ] New hero\n- [ ] Task\n  - [ ] subtask\n')).toEqual([
+    'open::New hero:Q4 · Website', 'open::Task:Q4',
+  ])
+  expect(of('- Q3 planning review\n- V2 of the onboarding\n')).toEqual(['open::Q3 planning review:', 'open::V2 of the onboarding:'])
+  expect(of('- [ ] ABC-123 Fix the test\n- [ ] #42 Docs typo\n- [ ] R7: Pick a name\n- [ ] Untracked chore\n')).toEqual([
+    'open:ABC-123:Fix the test:', 'open:#42:Docs typo:', 'open:R7:Pick a name:', 'open::Untracked chore:',
+  ])
+})
